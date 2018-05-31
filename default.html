@@ -1,0 +1,508 @@
+<html>
+<head>
+    <title>LoL Trainer</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <script src="js/three.js"></script>
+<script>
+    document.addEventListener('mousedown', onDocumentMouseDown, false);
+    document.addEventListener('keydown', onDocumentKeyDown, false);
+    document.addEventListener('keyup', onDocumentKeyUp, false);
+    document.addEventListener('mousemove', onDocumentMouseMove, false);
+    document.addEventListener('contextmenu', onContextMenu, false);
+
+    function onContextMenu( event ) {
+        event.preventDefault();
+    }
+
+    var cameraOnMe = false;
+    function onDocumentKeyDown(event) {
+        event.preventDefault();
+
+        switch(event.which) {
+            case 32:
+                cameraOnMe = true;
+                break;
+        }
+    }
+
+    function onDocumentKeyUp(event) {
+        event.preventDefault();
+
+        switch (event.which) {
+            case 32:
+                cameraOnMe = false;
+                break;
+        }
+    }
+
+    var raycasterMouseMove = new THREE.Raycaster();
+    var mouseMove = new THREE.Vector2();
+
+    var screenMoveUp = false;
+    var screenMoveDown = false;
+    var screenMoveRight = false;
+    var screenMoveLeft = false;
+
+    function onDocumentMouseMove(event) {
+        event.preventDefault();
+
+        mouseMove.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouseMove.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        screenMoveRight = mouseMove.x > 0.9;
+        screenMoveLeft = mouseMove.x < -0.9;
+        screenMoveUp = mouseMove.y > 0.9;
+        screenMoveDown = mouseMove.y < -0.9;
+
+        raycasterMouseMove.setFromCamera(mouseMove, camera);
+
+        //intersecting enemy
+        //var intersect = new THREE.Vector3();
+        var arr = raycasterMouseMove.intersectObject(enemyCircle, false);
+        //console.log('right clicked on map: ' + intersect.x + ' ' + intersect.y);
+        if (arr.length > 0) {
+            //arr[0].object.material.color = new THREE.Color(0xff0000);
+            enemyCircle.material.color = new THREE.Color(enemy.colorMouseOver);
+
+            //me.target = enemy;
+        } else {
+            enemyCircle.material.color = new THREE.Color(enemy.color);
+            //me.isMoving=
+        }
+    }
+
+    var raycasterMouseDown = new THREE.Raycaster();
+    var mouseDown = new THREE.Vector2();
+
+    function onDocumentMouseDown(event) {
+        event.preventDefault();
+        switch (event.which) {
+        case 1: // left mouse click
+            break;
+        case 3: // right mouse click
+            mouseDown.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseDown.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycasterMouseDown.setFromCamera(mouseDown, camera);
+
+            //intersecting enemy
+            var arr = raycasterMouseDown.intersectObject(enemyCircle, false);
+            if (arr.length > 0) {
+                me.attack(enemy);
+                break;
+            } else {
+                var intersect = new THREE.Vector3();
+                raycasterMouseDown.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), intersect);
+
+                //console.log('right clicked on map: ' + intersect.x + ' ' + intersect.y);
+
+                if (intersect.x < 0 || intersect.x > mapSize || intersect.y < 0 || intersect.y > mapSize) {
+                    console.log('outside click: ' + intersect.x + ' ' + intersect.y);
+                    break;
+                }
+
+                me.moveTo(intersect.x, intersect.y);
+                break;
+            }
+        }
+    }
+
+    var mapSize = 100;
+
+    var scene = new THREE.Scene();
+
+    var camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, 10, 1000);
+    camera.up = new THREE.Vector3(0, 0, 1);
+    camera.position.set(20, -100+20, 150);
+    camera.lookAt(new THREE.Vector3(20, 0 + 20, 0));
+
+    // create an AudioListener and add it to the camera
+    var listener = new THREE.AudioListener();
+    camera.add(listener);
+
+    // create a global audio source
+    var soundProject = new THREE.Audio(listener);
+    var soundForeSwing = new THREE.Audio(listener);
+    var soundOnHit = new THREE.Audio(listener);
+
+    // load a sound and set it as the Audio object's buffer
+    var audioLoader = new THREE.AudioLoader();
+    audioLoader.load('sounds/Orz-Zap.wav', function (buffer) {
+        soundProject.setBuffer(buffer);
+        //sound.setLoop(true);
+        soundProject.setVolume(0.5);
+        //sound.play();
+    });
+    audioLoader.load('sounds/radan-clip.WAV', function (buffer) {
+        soundForeSwing.setBuffer(buffer);
+        //sound.setLoop(true);
+        soundForeSwing.setVolume(0.5);
+        //sound.play();
+    });
+    audioLoader.load('sounds/ISD-Laser3.wav', function (buffer) {
+        soundOnHit.setBuffer(buffer);
+        //sound.setLoop(true);
+        soundOnHit.setVolume(0.3);
+        //sound.play();
+    });
+
+    //var controls = new THREE.OrbitControls(camera);
+
+    var renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    //create a blue LineBasicMaterial
+    var matMapBorder = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+    var geoMapBorder = new THREE.Geometry();
+    geoMapBorder.vertices.push(new THREE.Vector3(0, 0, 0));
+    geoMapBorder.vertices.push(new THREE.Vector3(mapSize, 0, 0));
+    geoMapBorder.vertices.push(new THREE.Vector3(mapSize, mapSize, 0));
+    geoMapBorder.vertices.push(new THREE.Vector3(0, mapSize, 0));
+    geoMapBorder.vertices.push(new THREE.Vector3(0, 0, 0));
+
+    var mapBorder = new THREE.Line(geoMapBorder, matMapBorder);
+    scene.add(mapBorder);
+
+
+    //var material2 = new THREE.LineBasicMaterial({ color: 0x888888 });
+
+    //var geometry2 = new THREE.Geometry();
+    //geometry2.vertices.push(new THREE.Vector3(0, 0, 0));
+    //geometry2.vertices.push(new THREE.Vector3(0, 100, 0));
+
+    //var line2 = new THREE.Line(geometry2, material2);
+    //scene.add(line2);
+
+
+    var material3 = new THREE.LineBasicMaterial({ color: 0x444444 });
+
+    var geometry3 = new THREE.Geometry();
+    geometry3.vertices.push(new THREE.Vector3(0, 0, 0));
+    geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
+    //geometry3.vertices.push(new THREE.Vector3(10, 0, 10));
+    //geometry3.vertices.push(new THREE.Vector3(10, 10, 10));
+    //geometry3.vertices.push(new THREE.Vector3(0, 10, 10));
+    //geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
+
+    var line3 = new THREE.Line(geometry3, material3);
+    scene.add(line3);
+
+
+    var me = {
+        attackRange: 12,
+        setAttackSpeed: function (aspd)//x attacks per second
+        {
+            me.attackTime = 1000 / aspd;//total attack time
+            me.foreSwing = .3 * me.attackTime;
+            me.backSwing = .3 * me.attackTime;
+           me. attackDelay=me.attackTime - me.foreSwing;
+        },
+        //attackSpeed:1,
+        //attackTime:1000/this.attackSpeed,//total attack time
+        //foreSwing: .3 * this.attackTime,
+        //backSwing: .3 * this.attackTime,
+        //attackDelay: this.attackTime - this.foreSwing,
+        attackState:0,//0:none, 1:foreswing, 2:backswing, 3:attackdelaying
+        radius: 1,
+        moveDistancePerFrame: 0.15,
+        x: 10,
+        y: 10,
+        z: 0,
+        color: 0xbbbbbb,
+        currentColor: null,
+        attackingColor:0xff0000,
+        faceAngle: Math.PI / 2,
+        moveTo: function(x, y) {
+            me.isMoving = true;
+            me.target = null;
+            me.attackState = 0;
+            me.des = {
+                x: x,
+                y: y
+            }
+        },
+        attack: function(obj) {
+            me.target = obj;
+            me.isMoving = false;
+        },
+        target: null,
+        projectile: {
+            moveDistancePerFrame: .8,
+            x: 0,
+            y: 0,
+            z: .001,
+            faceAngle: Math.PI / 2,
+            //visible: false,
+            target: null,
+            color: 0xff0000
+        }
+    }
+
+    me.setAttackSpeed(0.8);
+
+    var geoMeCircle = new THREE.CircleGeometry(me.radius, 64);
+    var matMeCircle = new THREE.MeshBasicMaterial({ color: 0x666666 });
+    geoMeCircle.vertices.shift();// Remove center vertex
+    var meCircle = new THREE.LineLoop(geoMeCircle, matMeCircle);
+    scene.add(meCircle);
+
+    //var dirX = me.direction.x - me.x;
+    //var dirY = me.direction.y - me.y;
+    //var dis = me.radius;
+    var x = me.radius;
+    var y = 0;
+    var a1 = -2.5;
+    var a2 = 2.5;
+    var x2 = Math.cos(a1) * x - Math.sin(a1) * y;
+    var y2 = Math.sin(a1) * x + Math.cos(a1) * y;
+    var x3 = Math.cos(a2) * x - Math.sin(a2) * y;
+    var y3 = Math.sin(a2) * x + Math.cos(a2) * y;
+
+
+    var geoMe = new THREE.Geometry();
+    geoMe.vertices.push(new THREE.Vector3(x, y, 0));
+    geoMe.vertices.push(new THREE.Vector3(x2, y2, 0));
+    geoMe.vertices.push(new THREE.Vector3(-x/3, -y/3, 0));
+    geoMe.vertices.push(new THREE.Vector3(x3, y3, 0));
+    //geoMe.vertices.push(new THREE.Vector3(x, y, 0));
+    geoMe.faces.push(new THREE.Face3(0, 3, 2));
+    geoMe.faces.push(new THREE.Face3(0, 2, 1));
+    //geoMe.computeFaceNormals();
+    var matMe = new THREE.MeshBasicMaterial({
+        //side: THREE.DoubleSide,
+        color: me.color
+    });
+    var meLine = new THREE.Mesh(geoMe, matMe);
+    scene.add(meLine);
+
+
+    var enemy = {
+        radius: 1,
+        moveDistancePerFrame: 0.1,
+        x: 10,
+        y: 10,
+        z: 0,
+        color: 0x666666,
+        colorMouseOver: 0x888888,
+        faceAngle: Math.PI / 2,
+        moveTo: function (x, y) {
+            enemy.isMoving = true;
+            enemy.isAttacking = false;
+            enemy.des = {
+                x: x,
+                y: y
+            }
+        }
+    }
+    var geoEnemyCircle = new THREE.CircleGeometry(enemy.radius, 64);
+    var matEnemyCircle = new THREE.MeshBasicMaterial({ color:enemy.color });
+    //geoEnemyCircle.vertices.shift();
+    var enemyCircle = new THREE.Mesh(geoEnemyCircle, matEnemyCircle);
+    scene.add(enemyCircle);
+
+
+    var geoMeProj = new THREE.Geometry();
+    geoMeProj.vertices.push(new THREE.Vector3(.4, 0, 0));
+    geoMeProj.vertices.push(new THREE.Vector3(-.2, .2, 0));
+    geoMeProj.vertices.push(new THREE.Vector3(-.2, -.2, 0));
+    geoMeProj.faces.push(new THREE.Face3(0, 1, 2));
+    var matMeProj = new THREE.MeshBasicMaterial({
+        //side: THREE.DoubleSide,
+        color: me.projectile.color
+    });
+    var meProj = new THREE.Mesh(geoMeProj, matMeProj);
+    scene.add(meProj);
+
+
+    var animate = function() {
+        requestAnimationFrame(animate);
+
+        //camera.position.x -= 0.01;
+        //camera.position.y += 0.01;
+        //camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+        if (me.target) { //attacking
+            var a = me.target.x - me.x;
+            var b = me.target.y - me.y;
+            var dis = Math.sqrt(a * a + b * b);
+
+            me.faceAngle = Math.atan2(b, a);
+
+            //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
+
+            //if (dis > me.attackRange) { //too far
+            //    me.x += me.moveDistancePerFrame / dis * a;
+            //    me.y += me.moveDistancePerFrame / dis * b;
+            //} else { //can attack
+                var t = (new Date()).getTime();
+
+                if (me.attackState == 0) {
+                    if (dis > me.attackRange) { //too far, move closer
+                        me.x += me.moveDistancePerFrame / dis * a;
+                        me.y += me.moveDistancePerFrame / dis * b;
+                    }
+                    else if (t - me.projectAt < me.attackDelay) {//can not attack yet
+                    } else {//start foreswing
+                        me.attackState = 1;
+                        me.foreSwingAt = t;
+
+                        soundForeSwing.play();
+                    }
+                } else if (me.attackState == 1) {//fore-swinging
+                    if (t - me.foreSwingAt < me.foreSwing) {
+                        me.currentColor = new THREE.Color(me.color).lerp(new THREE.Color(me.attackingColor), (t - me.foreSwingAt) / me.foreSwing);
+                    } else {//launch projectile
+                        //console.log('projectile launched ' + t);
+                        me.projectile.x = me.x;
+                        me.projectile.y = me.y;
+                        me.projectile.target = enemy;
+                        //me.projectile.visible = true;
+
+                        if (soundForeSwing.isPlaying)
+                            soundForeSwing.stop();
+                        soundProject.play();
+
+                        me.attackState = 2;
+                        me.backSwingAt = t;
+                        me.projectAt = t;
+                    }
+                } else if (me.attackState == 2) {//back-swinging 
+                    if (t - me.backSwingAt < me.backSwing) {
+                        me.currentColor = new THREE.Color(me.attackingColor).lerp(new THREE.Color(me.color), (t - me.backSwingAt) / me.backSwing);
+                    } else {
+                        me.attackState = 0;
+                    }
+                }
+                //else if (me.attackState == 3) {
+                //    if (t - me.projectAt < me.attackDelay) {
+                        
+                //    } else {
+                //        me.attackState = 1;
+                //        me.foreSwingAt = t;
+                //    }
+                //}
+            //}
+        } else if (me.isMoving) { //moving
+            var a = me.des.x - me.x;
+            var b = me.des.y - me.y;
+            var dis = Math.sqrt(a * a + b * b);
+
+            me.faceAngle = Math.atan2(b, a);
+
+            me.currentColor = new THREE.Color(me.color);
+
+            //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
+
+            if (dis > me.moveDistancePerFrame) {
+                me.x += me.moveDistancePerFrame / dis * a;
+                me.y += me.moveDistancePerFrame / dis * b;
+            } else {
+                me.isMoving = false;
+            }
+
+            if(soundForeSwing.isPlaying)
+                soundForeSwing.stop();
+        }
+
+        if (me.projectile.target) {
+            var a = me.projectile.target.x - me.projectile.x;
+            var b = me.projectile.target.y - me.projectile.y;
+            var dis = Math.sqrt(a * a + b * b);
+
+            me.projectile.faceAngle = Math.atan2(b, a);
+
+            //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
+
+            if (dis > me.projectile.moveDistancePerFrame) {//projectile running
+                me.projectile.x += me.projectile.moveDistancePerFrame / dis * a;
+                me.projectile.y += me.projectile.moveDistancePerFrame / dis * b;
+            } else {//on hit
+                //console.log("on hit "+new Date().getTime());
+                me.projectile.target = null;
+
+                soundOnHit.play();
+            }
+        }
+
+        if (enemy.isMoving) {
+            var a = enemy.des.x - enemy.x;
+            var b = enemy.des.y - enemy.y;
+            var dis = Math.sqrt(a * a + b * b);
+
+            //me.faceAngle = Math.atan2(b, a);
+
+            //me.currentColor = new THREE.Color(me.color);
+
+            //console.log(a+' '+b+' '+dis+' '+me.faceAngle);
+
+            if (dis > enemy.moveDistancePerFrame) {
+                enemy.x += enemy.moveDistancePerFrame / dis * a;
+                enemy.y += enemy.moveDistancePerFrame / dis * b;
+            } else {
+                enemy.isMoving = false;
+            }
+        }
+
+        meCircle.position.set(me.x, me.y, me.z);
+        meLine.position.set(me.x, me.y, me.z);
+        meLine.rotation.z = me.faceAngle;
+
+        //meLine.material.color.r += .1;
+        meLine.material.color = me.currentColor;
+        //console.log(meLine.material.color);
+
+        //console.log(meLine.rotation);
+        //console.log(meLine.geometry.faces);
+        //console.log(meLine.geometry.vertices);
+        //meLine.rotation.z += 0.05;
+        //meLine.rotation.y += 0.02;
+        //meLine.rotation = new THREE.Euler(1, 0, me.faceAngle, 'XYZ');
+
+        enemyCircle.position.set(enemy.x, enemy.y, enemy.z);
+        //enemyCircle.position.set(0, 0, 0);
+        //enemyCircle.rotation.x += 0.01;
+        //enemyCircle.rotation.y += 0.01;
+
+        meProj.position.set(me.projectile.x, me.projectile.y, me.projectile.z);
+        //meProj.position.set(0, 0, 0);
+        meProj.rotation.z = me.projectile.faceAngle;
+        meProj.visible = me.projectile.target != null;
+
+
+        if (cameraOnMe) {
+            camera.position.x = me.x;
+            camera.position.y = me.y - 100;
+        } else {
+            if (screenMoveRight) camera.position.x += .5;
+            if (screenMoveLeft) camera.position.x -= .5;
+            if (screenMoveUp) camera.position.y += .5;
+            if (screenMoveDown) camera.position.y -= .5;
+        }
+
+
+        renderer.render(scene, camera);
+
+
+        if (!enemy.isMoving) {
+            //var r=Math.random()
+            enemy.moveTo(Math.random() * 90+5, Math.random() * 90+5);
+        }
+    };
+
+    animate();
+</script>
+</body>
+</html>

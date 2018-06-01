@@ -127,6 +127,19 @@
     camera.position.set(20, -100+20, 150);
     camera.lookAt(new THREE.Vector3(20, 0 + 20, 0));
 
+    //var helper = new THREE.CameraHelper(camera);
+    //scene.add(helper);
+
+    var cameraMiniMap = new THREE.OrthographicCamera(-50, 50,-50,50,10,1000);
+    cameraMiniMap.up = new THREE.Vector3(0, -1, 0);
+    cameraMiniMap.position.set(50,50,-200);
+    cameraMiniMap.lookAt(new THREE.Vector3(50,50, 0));
+
+    //var cameraRig = new THREE.Group();
+    //cameraRig.add(camera);
+    //cameraRig.add(camera2);
+    //scene.add(cameraRig);
+
     // create an AudioListener and add it to the camera
     var listener = new THREE.AudioListener();
     camera.add(listener);
@@ -159,7 +172,9 @@
 
     //var controls = new THREE.OrbitControls(camera);
 
-    var renderer = new THREE.WebGLRenderer();
+    var renderer = new THREE.WebGLRenderer(
+        { antialias: true }
+        );
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -189,16 +204,16 @@
 
     var material3 = new THREE.LineBasicMaterial({ color: 0x444444 });
 
-    var geometry3 = new THREE.Geometry();
-    geometry3.vertices.push(new THREE.Vector3(0, 0, 0));
-    geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
+    //var geometry3 = new THREE.Geometry();
+    //geometry3.vertices.push(new THREE.Vector3(0, 0, 0));
+    //geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
     //geometry3.vertices.push(new THREE.Vector3(10, 0, 10));
     //geometry3.vertices.push(new THREE.Vector3(10, 10, 10));
     //geometry3.vertices.push(new THREE.Vector3(0, 10, 10));
     //geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
 
-    var line3 = new THREE.Line(geometry3, material3);
-    scene.add(line3);
+    //var line3 = new THREE.Line(geometry3, material3);
+    //scene.add(line3);
 
 
     var me = {
@@ -222,7 +237,7 @@
         y: 10,
         z: 0,
         color: 0xbbbbbb,
-        currentColor: null,
+        currentColor: new THREE.Color(0xbbbbbb),
         attackingColor:0xff0000,
         faceAngle: Math.PI / 2,
         moveTo: function(x, y) {
@@ -492,8 +507,19 @@
             if (screenMoveDown) camera.position.y -= .5;
         }
 
-
+        renderer.setViewport(0, 0, window.innerWidth , window.innerHeight);
+        renderer.setScissor(0, 0, window.innerWidth , window.innerHeight);
+        renderer.setScissorTest(true);
+        renderer.setClearColor(new THREE.Color(0x333333));
         renderer.render(scene, camera);
+
+        //cameraMiniMap.position.x = me.x;
+        //cameraMiniMap.position.y = me.y;
+        renderer.setViewport(window.innerWidth - 200, window.innerHeight - 200, 200, 200);
+        renderer.setScissor(window.innerWidth - 200, window.innerHeight - 200, 200, 200);
+        renderer.setScissorTest(true);
+        //renderer.setClearColor(new THREE.Color(0x000000));
+        renderer.render(scene, cameraMiniMap);
 
 
         if (!enemy.isMoving) {

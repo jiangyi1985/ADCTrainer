@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
     <title>LoL Trainer</title>
@@ -30,8 +31,33 @@
         event.preventDefault();
 
         switch(event.which) {
-            case 32:
+            case 32://space
                 cameraOnMe = true;
+                break;
+
+            case 65://A: attack move click
+
+                //raycasterMouseMove.setFromCamera(mouseMove, camera);
+
+                //intersecting enemy
+                var arr = raycasterMouseMove.intersectObject(enemyCircle, false);
+                if (arr.length > 0) {
+                    me.attack(enemy);
+                    break;
+                } else {
+                    var intersect = new THREE.Vector3();
+                    raycasterMouseMove.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), intersect);
+
+                    //console.log('right clicked on map: ' + intersect.x + ' ' + intersect.y);
+
+                    if (intersect.x < 0 || intersect.x > mapSize || intersect.y < 0 || intersect.y > mapSize) {
+                        console.log('outside attack move click: ' + intersect.x + ' ' + intersect.y);
+                        break;
+                    }
+
+                    me.attackMoveTo(intersect.x, intersect.y);
+                    break;
+                }
                 break;
         }
     }
@@ -108,7 +134,7 @@
                 //console.log('right clicked on map: ' + intersect.x + ' ' + intersect.y);
 
                 if (intersect.x < 0 || intersect.x > mapSize || intersect.y < 0 || intersect.y > mapSize) {
-                    console.log('outside click: ' + intersect.x + ' ' + intersect.y);
+                    console.log('outside right click: ' + intersect.x + ' ' + intersect.y);
                     break;
                 }
 
@@ -120,7 +146,7 @@
 
     var mapSize = 100;
 
-    var scene = new THREE.Scene();
+    var scene = new THREE.Scene(); 
 
     var camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, 10, 1000);
     camera.up = new THREE.Vector3(0, 0, 1);
@@ -202,18 +228,18 @@
     //scene.add(line2);
 
 
-    var material3 = new THREE.LineBasicMaterial({ color: 0x444444 });
-
-    //var geometry3 = new THREE.Geometry();
-    //geometry3.vertices.push(new THREE.Vector3(0, 0, 0));
-    //geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
-    //geometry3.vertices.push(new THREE.Vector3(10, 0, 10));
-    //geometry3.vertices.push(new THREE.Vector3(10, 10, 10));
-    //geometry3.vertices.push(new THREE.Vector3(0, 10, 10));
-    //geometry3.vertices.push(new THREE.Vector3(0, 0, 10));
-
-    //var line3 = new THREE.Line(geometry3, material3);
-    //scene.add(line3);
+    var geoMark = new THREE.Geometry();
+    geoMark.vertices.push(new THREE.Vector3(.5, 0, 0));
+    geoMark.vertices.push(new THREE.Vector3(-.5, 0, 0));
+    geoMark.vertices.push(new THREE.Vector3(0, 0, 0));
+    geoMark.vertices.push(new THREE.Vector3(0, .5, 0));
+    geoMark.vertices.push(new THREE.Vector3(0, 0, 0));
+    geoMark.vertices.push(new THREE.Vector3(0, -.5, 0));
+    var matMark = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+    var lineMark = new THREE.Line(geoMark, matMark);
+    lineMark.visible = false;
+    lineMark.updateAt = 0;
+    scene.add(lineMark);
 
 
     var me = {
@@ -240,16 +266,47 @@
         currentColor: new THREE.Color(0xbbbbbb),
         attackingColor:0xff0000,
         faceAngle: Math.PI / 2,
-        moveTo: function(x, y) {
+        moveTo: function (x, y) {
+            me.isAttackMoving = false;
             me.isMoving = true;
             me.target = null;
             me.attackState = 0;
             me.des = {
                 x: x,
                 y: y
-            }
+            };
+
+            lineMark.updateAt = new Date().getTime();
+            lineMark.material.color = new THREE.Color(0x00ff00);
+            lineMark.position.x = x;
+            lineMark.position.y = y;
         },
-        attack: function(obj) {
+        attackMoveTo: function (x, y) {
+            me.isAttackMoving = true;
+
+            var a = me.x - enemy.x;
+            var b = me.y - enemy.y;
+            var dis = Math.sqrt(a * a + b * b);
+            if (dis < me.attackRange) {
+                me.target = enemy;
+                me.isMoving = false;
+            } else {
+                me.isMoving = true;
+                me.target = null;
+                me.attackState = 0;
+                me.des = {
+                    x: x,
+                    y: y
+                };
+            }
+
+            lineMark.updateAt = new Date().getTime();
+            lineMark.material.color = new THREE.Color(0xff0000);
+            lineMark.position.x = x;
+            lineMark.position.y = y;
+        },
+        attack: function (obj) {
+            me.isAttackMoving = false;
             me.target = obj;
             me.isMoving = false;
         },
@@ -430,6 +487,16 @@
 
             if(soundForeSwing.isPlaying)
                 soundForeSwing.stop();
+
+            if (me.isAttackMoving) {
+                var a = me.x - enemy.x;
+                var b = me.y - enemy.y;
+                var dis = Math.sqrt(a * a + b * b);
+                if (dis < me.attackRange) {
+                    me.target = enemy;
+                    me.isMoving = false;
+                } 
+            }
         }
 
         if (me.projectile.target) {
@@ -497,14 +564,18 @@
         meProj.visible = me.projectile.target != null;
 
 
+        var markTime = new Date().getTime() - lineMark.updateAt;
+        lineMark.visible = markTime < 500 && markTime>50 ;
+
+
         if (cameraOnMe) {
             camera.position.x = me.x;
             camera.position.y = me.y - 100;
         } else {
-            if (screenMoveRight) camera.position.x += .5;
-            if (screenMoveLeft) camera.position.x -= .5;
-            if (screenMoveUp) camera.position.y += .5;
-            if (screenMoveDown) camera.position.y -= .5;
+            if (screenMoveRight && camera.position.x < 100) camera.position.x += .5;
+            if (screenMoveLeft && camera.position.x > -0) camera.position.x -= .5;
+            if (screenMoveUp && camera.position.y < 0) camera.position.y += .5;
+            if (screenMoveDown && camera.position.y > -100) camera.position.y -= .5;
         }
 
         renderer.setViewport(0, 0, window.innerWidth , window.innerHeight);

@@ -14,8 +14,25 @@
     </style>
 </head>
 <body>
-    <script src="js/three.js"></script>
+<script src="js/three.js"></script>
+<script src="js/dat.gui.min.js"></script>
 <script>
+    var gui;
+    window.onload = function () {
+        //var text = new FizzyText();
+        gui = new dat.GUI();
+        gui.add(me, 'attackSpeed', 0.5, 3);
+        gui.add(me, 'attackRange', 1, 20);
+        //gui.add(me, 'foreSwingRatio');
+        //gui.add(me, 'backSwingRatio');
+        gui.add(me, 'foreSwing').listen();
+        gui.add(me, 'backSwing').listen();
+        gui.add(me, 'attackDelay').listen();
+        //gui.add(text, 'speed', -5, 5);
+        //gui.add(text, 'displayOutline');
+        //gui.add(text, 'explode');
+    };
+
     document.addEventListener('mousedown', onDocumentMouseDown, false);
     document.addEventListener('keydown', onDocumentKeyDown, false);
     document.addEventListener('keyup', onDocumentKeyUp, false);
@@ -31,34 +48,34 @@
         event.preventDefault();
 
         switch(event.which) {
-            case 32://space
-                cameraOnMe = true;
+        case 32://space
+            cameraOnMe = true;
+            break;
+
+        case 65://A: attack move click
+
+            //raycasterMouseMove.setFromCamera(mouseMove, camera);
+
+            //intersecting enemy
+            var arr = raycasterMouseMove.intersectObject(enemyCircle, false);
+            if (arr.length > 0) {
+                me.attack(enemy);
                 break;
+            } else {
+                var intersect = new THREE.Vector3();
+                raycasterMouseMove.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), intersect);
 
-            case 65://A: attack move click
+                //console.log('right clicked on map: ' + intersect.x + ' ' + intersect.y);
 
-                //raycasterMouseMove.setFromCamera(mouseMove, camera);
-
-                //intersecting enemy
-                var arr = raycasterMouseMove.intersectObject(enemyCircle, false);
-                if (arr.length > 0) {
-                    me.attack(enemy);
-                    break;
-                } else {
-                    var intersect = new THREE.Vector3();
-                    raycasterMouseMove.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), intersect);
-
-                    //console.log('right clicked on map: ' + intersect.x + ' ' + intersect.y);
-
-                    if (intersect.x < 0 || intersect.x > mapSize || intersect.y < 0 || intersect.y > mapSize) {
-                        console.log('outside attack move click: ' + intersect.x + ' ' + intersect.y);
-                        break;
-                    }
-
-                    me.attackMoveTo(intersect.x, intersect.y);
+                if (intersect.x < 0 || intersect.x > mapSize || intersect.y < 0 || intersect.y > mapSize) {
+                    console.log('outside attack move click: ' + intersect.x + ' ' + intersect.y);
                     break;
                 }
+
+                me.attackMoveTo(intersect.x, intersect.y);
                 break;
+            }
+            break;
         }
     }
 
@@ -66,9 +83,9 @@
         event.preventDefault();
 
         switch (event.which) {
-            case 32:
-                cameraOnMe = false;
-                break;
+        case 32:
+            cameraOnMe = false;
+            break;
         }
     }
 
@@ -180,7 +197,7 @@
     audioLoader.load('sounds/Orz-Zap.wav', function (buffer) {
         soundProject.setBuffer(buffer);
         //sound.setLoop(true);
-        soundProject.setVolume(0.5);
+        soundProject.setVolume(0.3);
         //sound.play();
     });
     audioLoader.load('sounds/radan-clip.WAV', function (buffer) {
@@ -200,7 +217,7 @@
 
     var renderer = new THREE.WebGLRenderer(
         { antialias: true }
-        );
+    );
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -241,21 +258,30 @@
     lineMark.updateAt = 0;
     scene.add(lineMark);
 
+    //var attackSpeed = 0.8;
+    //var foreSwingRatio = 0.3;
+    //var backSwingRatio = 0.3;
 
     var me = {
         attackRange: 12,
-        setAttackSpeed: function (aspd)//x attacks per second
-        {
-            me.attackTime = 1000 / aspd;//total attack time
-            me.foreSwing = .3 * me.attackTime;
-            me.backSwing = .3 * me.attackTime;
-           me. attackDelay=me.attackTime - me.foreSwing;
-        },
+        //setAttackSpeed: function (aspd)//x attacks per second
+        //{
+        //    me.attackTime = 1000 / aspd;//total attack time
+        //    me.foreSwing = .3 * me.attackTime;
+        //    me.backSwing = .3 * me.attackTime;
+        //    me. attackDelay=me.attackTime - me.foreSwing;
+        //},
+
+        attackSpeed : 0.8,
+        foreSwingRatio : 0.3,
+        backSwingRatio : 0.3,
+
         //attackSpeed:1,
         //attackTime:1000/this.attackSpeed,//total attack time
-        //foreSwing: .3 * this.attackTime,
-        //backSwing: .3 * this.attackTime,
-        //attackDelay: this.attackTime - this.foreSwing,
+        //foreSwing: this.foreSwingRatio * (1000 / this.attackSpeed),
+        //backSwing: this.backSwingRatio * (1000 / this.attackSpeed),
+        //attackDelay: (1000 / this.attackSpeed) * (1 - this.foreSwingRatio),
+
         attackState:0,//0:none, 1:foreswing, 2:backswing, 3:attackdelaying
         radius: 1,
         moveDistancePerFrame: 0.15,
@@ -323,7 +349,8 @@
         }
     }
 
-    me.setAttackSpeed(0.8);
+    //debugger;
+    //me.setAttackSpeed(0.8);
 
     var geoMeCircle = new THREE.CircleGeometry(me.radius, 64);
     var matMeCircle = new THREE.MeshBasicMaterial({ color: 0x666666 });
@@ -376,7 +403,7 @@
             enemy.des = {
                 x: x,
                 y: y
-            }
+            } 
         }
     }
     var geoEnemyCircle = new THREE.CircleGeometry(enemy.radius, 64);
@@ -406,6 +433,11 @@
         //camera.position.y += 0.01;
         //camera.lookAt(new THREE.Vector3(0, 0, 0));
 
+        me.attackTime = 1000 / me.attackSpeed;
+        me.foreSwing = me.foreSwingRatio * me.attackTime;
+        me.backSwing = me.backSwingRatio * me.attackTime;
+        me.attackDelay = me.attackTime * (1 - me.foreSwingRatio);
+
         if (me.target) { //attacking
             var a = me.target.x - me.x;
             var b = me.target.y - me.y;
@@ -419,53 +451,54 @@
             //    me.x += me.moveDistancePerFrame / dis * a;
             //    me.y += me.moveDistancePerFrame / dis * b;
             //} else { //can attack
-                var t = (new Date()).getTime();
+            var t = (new Date()).getTime();
 
-                if (me.attackState == 0) {
-                    if (dis > me.attackRange) { //too far, move closer
-                        me.x += me.moveDistancePerFrame / dis * a;
-                        me.y += me.moveDistancePerFrame / dis * b;
-                    }
-                    else if (t - me.projectAt < me.attackDelay) {//can not attack yet
-                    } else {//start foreswing
-                        me.attackState = 1;
-                        me.foreSwingAt = t;
-
-                        soundForeSwing.play();
-                    }
-                } else if (me.attackState == 1) {//fore-swinging
-                    if (t - me.foreSwingAt < me.foreSwing) {
-                        me.currentColor = new THREE.Color(me.color).lerp(new THREE.Color(me.attackingColor), (t - me.foreSwingAt) / me.foreSwing);
-                    } else {//launch projectile
-                        //console.log('projectile launched ' + t);
-                        me.projectile.x = me.x;
-                        me.projectile.y = me.y;
-                        me.projectile.target = enemy;
-                        //me.projectile.visible = true;
-
-                        if (soundForeSwing.isPlaying)
-                            soundForeSwing.stop();
-                        soundProject.play();
-
-                        me.attackState = 2;
-                        me.backSwingAt = t;
-                        me.projectAt = t;
-                    }
-                } else if (me.attackState == 2) {//back-swinging 
-                    if (t - me.backSwingAt < me.backSwing) {
-                        me.currentColor = new THREE.Color(me.attackingColor).lerp(new THREE.Color(me.color), (t - me.backSwingAt) / me.backSwing);
-                    } else {
-                        me.attackState = 0;
-                    }
+            if (me.attackState == 0) {
+                if (dis > me.attackRange) { //too far, move closer
+                    me.x += me.moveDistancePerFrame / dis * a;
+                    me.y += me.moveDistancePerFrame / dis * b;
                 }
-                //else if (me.attackState == 3) {
-                //    if (t - me.projectAt < me.attackDelay) {
+                else if (t - me.projectAt < me.attackDelay) {//can not attack yet
+                } else {//start foreswing
+                    me.attackState = 1;
+                    me.foreSwingAt = t;
+
+                    soundForeSwing.play();
+                }
+            } else if (me.attackState == 1) {//fore-swinging
+                if (t - me.foreSwingAt < me.foreSwing) {
+                    me.currentColor = new THREE.Color(me.color).lerp(new THREE.Color(me.attackingColor), (t - me.foreSwingAt) / me.foreSwing);
+                } else {//launch projectile
+                    //console.log('projectile launched ' + t);
+                    me.projectile.x = me.x;
+                    me.projectile.y = me.y;
+                    me.projectile.target = enemy;
+                    //me.projectile.visible = true;
+
+                    if (soundForeSwing.isPlaying)
+                        soundForeSwing.stop();
+
+                    soundProject.play();
+
+                    me.attackState = 2;
+                    me.backSwingAt = t;
+                    me.projectAt = t;
+                }
+            } else if (me.attackState == 2) {//back-swinging 
+                if (t - me.backSwingAt < me.backSwing) {
+                    me.currentColor = new THREE.Color(me.attackingColor).lerp(new THREE.Color(me.color), (t - me.backSwingAt) / me.backSwing);
+                } else {
+                    me.attackState = 0;
+                }
+            }
+            //else if (me.attackState == 3) {
+            //    if (t - me.projectAt < me.attackDelay) {
                         
-                //    } else {
-                //        me.attackState = 1;
-                //        me.foreSwingAt = t;
-                //    }
-                //}
+            //    } else {
+            //        me.attackState = 1;
+            //        me.foreSwingAt = t;
+            //    }
+            //}
             //}
         } else if (me.isMoving) { //moving
             var a = me.des.x - me.x;
@@ -515,6 +548,8 @@
                 //console.log("on hit "+new Date().getTime());
                 me.projectile.target = null;
 
+                if (soundOnHit.isPlaying)
+                    soundOnHit.stop();
                 soundOnHit.play();
             }
         }
@@ -572,10 +607,10 @@
             camera.position.x = me.x;
             camera.position.y = me.y - 100;
         } else {
-            if (screenMoveRight && camera.position.x < 100) camera.position.x += .5;
-            if (screenMoveLeft && camera.position.x > -0) camera.position.x -= .5;
-            if (screenMoveUp && camera.position.y < 0) camera.position.y += .5;
-            if (screenMoveDown && camera.position.y > -100) camera.position.y -= .5;
+            if (screenMoveRight && camera.position.x < 100-30) camera.position.x += .5;
+            if (screenMoveLeft && camera.position.x > -0+30) camera.position.x -= .5;
+            if (screenMoveUp && camera.position.y < 0-10) camera.position.y += .5;
+            if (screenMoveDown && camera.position.y > -100+10) camera.position.y -= .5;
         }
 
         renderer.setViewport(0, 0, window.innerWidth , window.innerHeight);
